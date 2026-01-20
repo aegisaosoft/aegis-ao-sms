@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmsService.Models.Dto;
 using SmsService.Services;
+using SmsService.Diagnostic;
 
 namespace SmsService.Controllers;
 
@@ -195,19 +196,6 @@ public class SmsController : ControllerBase
         }
     }
 
-    private Configuration Configuration { get; }
-
-    public SmsController(
-        ISmsService smsService,
-        IUrlShortenerService urlShortener,
-        IConfiguration configuration,
-        ILogger<SmsController> logger)
-    {
-        _smsService = smsService;
-        _urlShortener = urlShortener;
-        Configuration = configuration;
-        _logger = logger;
-    }
 
     private List<string> GenerateDiagnosticRecommendations(DiagnosticResult result)
     {
@@ -237,10 +225,4 @@ public class SmsController : ControllerBase
 
         return recommendations;
     }
-}
-
-public record DiagnosticRequest
-{
-    [Required, Phone]
-    public string TestPhoneNumber { get; init; } = string.Empty;
 }

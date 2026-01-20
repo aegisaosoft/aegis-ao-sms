@@ -80,10 +80,33 @@ public record ApiResponse
 {
     public bool Success { get; init; }
     public string? Message { get; init; }
-    
-    public static ApiResponse Ok(string? message = null) => 
+
+    public static ApiResponse Ok(string? message = null) =>
         new() { Success = true, Message = message };
-    
-    public static ApiResponse Error(string message) => 
+
+    public static ApiResponse Error(string message) =>
         new() { Success = false, Message = message };
+}
+
+// === Diagnostic DTOs ===
+
+public record DiagnosticRequest
+{
+    [Required, Phone]
+    public string TestPhoneNumber { get; init; } = string.Empty;
+}
+
+public record DiagnosticResult
+{
+    public TestResult ConnectionTest { get; set; } = new();
+    public TestResult PhoneNumberTest { get; set; } = new();
+    public TestResult SmsTest { get; set; } = new();
+    public TestResult AzureResponseTest { get; set; } = new();
+    public string GeneralError { get; set; } = "";
+}
+
+public record TestResult
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = "";
 }
