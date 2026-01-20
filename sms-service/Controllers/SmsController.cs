@@ -12,15 +12,18 @@ public class SmsController : ControllerBase
 {
     private readonly ISmsService _smsService;
     private readonly IUrlShortenerService _urlShortener;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<SmsController> _logger;
 
     public SmsController(
         ISmsService smsService,
         IUrlShortenerService urlShortener,
+        IConfiguration configuration,
         ILogger<SmsController> logger)
     {
         _smsService = smsService;
         _urlShortener = urlShortener;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -131,12 +134,113 @@ public class SmsController : ControllerBase
         
         var successCount = results.Count(r => ((dynamic)r).Success);
         
-        return Ok(ApiResponse<object>.Ok(new 
-        { 
+        return Ok(ApiResponse<object>.Ok(new
+        {
             Total = request.PhoneNumbers.Count,
             Sent = successCount,
             Failed = request.PhoneNumbers.Count - successCount,
-            Results = results 
+            Results = results
         }));
     }
+
+    /// <summary>
+    /// Diagnostic endpoint to test SMS functionality
+    /// </summary>
+    [HttpPost("diagnostic")]
+    public async Task<IActionResult> RunDiagnostic([FromBody] DiagnosticRequest request)
+    {
+        var userId = User.FindFirst("sub")?.Value ?? User.FindFirst("userId")?.Value;
+        _logger.LogInformation("SMS diagnostic requested by user {UserId} for phone {Phone}",
+            userId, request.TestPhoneNumber);
+
+        try
+        {
+            var connectionString = _configuration["AzureCommunication:ConnectionString"];
+            var fromNumber = _configuration["AzureCommunication:FromPhoneNumber"];
+
+            var diagnostic = new SmssDiagnosticTool(connectionString, fromNumber);
+            var result = await diagnostic.RunFullDiagnosticAsync(request.TestPhoneNumber);
+
+            // Return detailed diagnostic info
+            return Ok(ApiResponse<object>.Ok(new
+            {
+                FromNumber = fromNumber,
+                TestNumber = request.TestPhoneNumber,
+                Tests = new {
+                    Connection = new {
+                        Success = result.ConnectionTest.Success,
+                        Message = result.ConnectionTest.Message
+                    },
+                    PhoneValidation = new {
+                        Success = result.PhoneNumberTest.Success,
+                        Message = result.PhoneNumberTest.Message
+                    },
+                    SmsSend = new {
+                        Success = result.SmsTest.Success,
+                        Message = result.SmsTest.Message
+                    },
+                    AzureResponse = new {
+                        Success = result.AzureResponseTest.Success,
+                        Message = result.AzureResponseTest.Message
+                    }
+                },
+                GeneralError = result.GeneralError,
+                Recommendations = GenerateDiagnosticRecommendations(result)
+            }, "Diagnostic completed"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Diagnostic failed for {Phone}", request.TestPhoneNumber);
+            return StatusCode(500, ApiResponse.Error($"Diagnostic failed: {ex.Message}"));
+        }
+    }
+
+    private Configuration Configuration { get; }
+
+    public SmsController(
+        ISmsService smsService,
+        IUrlShortenerService urlShortener,
+        IConfiguration configuration,
+        ILogger<SmsController> logger)
+    {
+        _smsService = smsService;
+        _urlShortener = urlShortener;
+        Configuration = configuration;
+        _logger = logger;
+    }
+
+    private List<string> GenerateDiagnosticRecommendations(DiagnosticResult result)
+    {
+        var recommendations = new List<string>();
+
+        if (!result.ConnectionTest.Success)
+        {
+            recommendations.Add("Check Azure Communication Services connection string");
+            recommendations.Add("Verify the service is active and accessible");
+        }
+
+        if (!result.PhoneNumberTest.Success)
+        {
+            recommendations.Add("Fix phone number format - ensure it includes country code");
+        }
+
+        if (result.SmsTest.Success && result.AzureResponseTest.Success)
+        {
+            recommendations.Add("Technical setup appears correct!");
+            recommendations.Add("If SMS still not delivered, check:");
+            recommendations.Add("- Phone number is not blocked/filtered by carrier");
+            recommendations.Add("- Azure Communication Services account has sufficient credits");
+            recommendations.Add("- Phone number +18332702587 has SMS capability enabled in Azure Portal");
+            recommendations.Add("- Check Azure Communication Services delivery logs in Azure Portal");
+            recommendations.Add("- Verify phone number 1-833-270-2587 is purchased and active");
+        }
+
+        return recommendations;
+    }
+}
+
+public record DiagnosticRequest
+{
+    [Required, Phone]
+    public string TestPhoneNumber { get; init; } = string.Empty;
 }
