@@ -7,7 +7,7 @@ using SmsService.Diagnostic;
 namespace SmsService.Controllers;
 
 [ApiController]
-[Route("api/sms")]
+[Route("azure/sms")]
 [Authorize]
 public class SmsController : ControllerBase
 {
@@ -17,7 +17,7 @@ public class SmsController : ControllerBase
     private readonly ILogger<SmsController> _logger;
 
     public SmsController(
-        ISmsService smsService,
+        [FromKeyedServices("azure")] ISmsService smsService,
         IUrlShortenerService urlShortener,
         IConfiguration configuration,
         ILogger<SmsController> logger)
@@ -197,7 +197,7 @@ public class SmsController : ControllerBase
     }
 
 
-    private List<string> GenerateDiagnosticRecommendations(DiagnosticResult result)
+    private List<string> GenerateDiagnosticRecommendations(SmsService.Diagnostic.DiagnosticResult result)
     {
         var recommendations = new List<string>();
 

@@ -45,8 +45,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// Services
-builder.Services.AddSingleton<ISmsService, AzureSmsService>();
+// SMS providers (keyed services)
+builder.Services.AddKeyedSingleton<ISmsService, AzureSmsService>("azure");
+builder.Services.AddKeyedSingleton<ISmsService, TwilioSmsService>("twilio");
 builder.Services.AddHttpClient<IUrlShortenerService, UrlShortenerService>();
 
 // HttpClient for Auth Server

@@ -5,7 +5,7 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$TestPhoneNumber,
 
-    [string]$ApiUrl = "https://localhost:5001/api/sms/diagnostic",
+    [string]$ApiUrl = "https://localhost:5001/azure/sms/diagnostic",
 
     [string]$AuthToken = $null
 )
